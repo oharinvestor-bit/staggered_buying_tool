@@ -76,7 +76,7 @@ st.subheader("📌 Call Details")
 call_sell_strike = st.number_input("Call SELL Strike", value=1535.0)
 call_sell_price = st.number_input("Call SELL Premium", value=15.0)
 
-call_buy_strike = st.number_input("Call BUY Strike (far OTM)", value=1800.0)
+call_buy_strike = st.number_input("Call BUY Strike", value=1800.0)
 call_buy_price = st.number_input("Call BUY Premium", value=1.0)
 
 st.subheader("📌 Execution Plan")
