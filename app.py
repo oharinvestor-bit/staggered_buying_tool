@@ -73,11 +73,11 @@ lot_size = st.number_input("Lot Size (per option)", value=500)
 option_lots = st.number_input("Number of Option Lots Executed", min_value=1, value=1)
 
 st.subheader("📌 Call Details")
-call_sell_strike = st.number_input("Call SELL Strike", value=1535.0)
+call_sell_strike = st.number_input("Call SELL Strike", value=1530.0)
 call_sell_price = st.number_input("Call SELL Premium", value=15.0)
 
-call_buy_strike = st.number_input("Call BUY Strike", value=1800.0)
-call_buy_price = st.number_input("Call BUY Premium", value=1.0)
+call_buy_strike = st.number_input("Call BUY Strike", value=1540.0)
+call_buy_price = st.number_input("Call BUY Premium", value=10.0)
 
 st.subheader("📌 Execution Plan")
 steps = st.slider("Maximum Buy Steps", min_value=2, max_value=10, value=5)
