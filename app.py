@@ -134,16 +134,32 @@ if st.button("🚀 Calculate"):
         # -------- STAGGERED BUY PLAN --------
         st.markdown("## 📋 **STAGGERED BUY PLAN**")
 
-        df = pd.DataFrame(rows)
+        # 🔥 INDEX REMOVED HERE
+        df = pd.DataFrame(rows).reset_index(drop=True)
 
-        styled_df = df.style\
-            .hide(axis="index")\
+        styled_df = (
+            df.style
             .format({
                 "Buy Price": "₹{:,.2f}",
                 "Capital Used (₹)": "₹{:,.0f}"
-            }) \
-            .applymap(lambda x: "color: green; font-weight: bold;", subset=["Buy Price"])\
+            })
+            .applymap(lambda x: "color: green; font-weight: bold;", subset=["Buy Price"])
             .applymap(lambda x: "color: #003366; font-weight: bold;", subset=["Capital Used (₹)"])
+            .set_properties(**{
+                "font-size": "18px",
+                "text-align": "center"
+            })
+            .set_table_styles([
+                {
+                    "selector": "th",
+                    "props": [
+                        ("font-size", "19px"),
+                        ("font-weight", "bold"),
+                        ("text-align", "center")
+                    ]
+                }
+            ])
+        )
 
         st.dataframe(styled_df, use_container_width=True)
 
