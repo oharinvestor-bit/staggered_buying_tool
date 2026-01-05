@@ -66,6 +66,9 @@ st.set_page_config(page_title="Staggered Buying Tool", layout="centered")
 st.title("📊 Staggered Buying Calculator")
 st.caption("Calculates Amount of Equity to be Purchased in a Covered Call Spread. Created by Nitin Joshi | Being System Trader")
 
+# 🔽 ADD VIDEO HERE
+st.video("https://youtu.be/l4KEN81CBvw")
+
 st.divider()
 
 spot_price = st.number_input("Current Spot Price", value=1500.0)
