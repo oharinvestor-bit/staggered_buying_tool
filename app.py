@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import io  # <--- NEW IMPORT FOR FILE BUFFER
 
 # ---------------- CORE LOGIC ---------------- #
 
@@ -202,6 +203,35 @@ if st.button("🚀 Calculate"):
         )
 
         st.dataframe(styled_df, use_container_width=True)
+
+        # =========================================================
+        # 🟢 EXPORT TO EXCEL BUTTON
+        # =========================================================
+        # Create an in-memory buffer
+        buffer = io.BytesIO()
+        
+        # Write the DataFrame to the buffer as an Excel file
+        with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
+            df.to_excel(writer, index=False, sheet_name='Buying Plan')
+            
+            # Optional: Auto-adjust column widths in the Excel file
+            worksheet = writer.sheets['Buying Plan']
+            for i, col in enumerate(df.columns):
+                max_len = max(df[col].astype(str).map(len).max(), len(col)) + 2
+                worksheet.set_column(i, i, max_len)
+
+        # Rewind the buffer
+        buffer.seek(0)
+
+        # Streamlit Download Button
+        st.download_button(
+            label="📥 Download Plan as Excel",
+            data=buffer,
+            file_name="staggered_buying_plan.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+        # =========================================================
+
 
         st.divider()
 
