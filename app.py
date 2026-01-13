@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-import io  # <--- NEW IMPORT FOR FILE BUFFER
+import io  # Required for file handling
 
 # ---------------- CORE LOGIC ---------------- #
 
@@ -66,6 +66,7 @@ st.set_page_config(page_title="Staggered Buying Tool", layout="centered")
 
 st.title("📊 Staggered Buying Calculator")
 st.caption("Calculates Amount of Equity to be Purchased in a Covered Call Spread. Created by Nitin Joshi | Being System Trader")
+
 # ============================
 # BOOKING CTA WITH BUTTON
 # ============================
@@ -175,7 +176,6 @@ if st.button("🚀 Calculate"):
         # -------- STAGGERED BUY PLAN --------
         st.markdown("## 📋 **STAGGERED BUY PLAN**")
 
-        # 🔥 INDEX REMOVED HERE
         df = pd.DataFrame(rows).reset_index(drop=True)
 
         styled_df = (
@@ -205,33 +205,58 @@ if st.button("🚀 Calculate"):
         st.dataframe(styled_df, use_container_width=True)
 
         # =========================================================
-        # 🟢 EXPORT TO EXCEL BUTTON
+        # 🟢 EXPORT TO EXCEL (WITH INPUTS & OUTPUTS)
         # =========================================================
-        # Create an in-memory buffer
-        buffer = io.BytesIO()
         
-        # Write the DataFrame to the buffer as an Excel file
+        # 1. Create Summary DataFrame (Inputs + High-Level Results)
+        summary_data = {
+            "Parameter": [
+                "Spot Price", "Lot Size", "Option Lots",
+                "Call SELL Strike", "Call SELL Price",
+                "Call BUY Strike", "Call BUY Price",
+                "Max Buy Steps", "Initial Leg %", "Coverage Ratio Required",
+                "-----------------", "-----------------", # Separator
+                "Calculated Breakeven", "Max Option Loss", "Total Shares Required",
+                "Total Capital (Staggered)", "Average Buy Price", "Equity Profit @ BE"
+            ],
+            "Value": [
+                spot_price, lot_size, option_lots,
+                call_sell_strike, call_sell_price,
+                call_buy_strike, call_buy_price,
+                steps, f"{initial_leg_percent}%", f"{coverage_ratio*100}%",
+                "", "", # Separator
+                round(breakeven, 2), option_loss, required_shares,
+                staggered_capital, round(avg_price, 2), int(profit_at_be)
+            ]
+        }
+        df_summary = pd.DataFrame(summary_data)
+
+        # 2. Create Excel File with Two Sheets
+        buffer = io.BytesIO()
         with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
+            # Sheet 1: Summary
+            df_summary.to_excel(writer, index=False, sheet_name='Summary')
+            
+            # Sheet 2: Detailed Plan
             df.to_excel(writer, index=False, sheet_name='Buying Plan')
             
-            # Optional: Auto-adjust column widths in the Excel file
-            worksheet = writer.sheets['Buying Plan']
-            for i, col in enumerate(df.columns):
-                max_len = max(df[col].astype(str).map(len).max(), len(col)) + 2
-                worksheet.set_column(i, i, max_len)
+            # Auto-adjust column widths for readability
+            for sheet_name in ['Summary', 'Buying Plan']:
+                worksheet = writer.sheets[sheet_name]
+                dataframe = df_summary if sheet_name == 'Summary' else df
+                for i, col in enumerate(dataframe.columns):
+                    max_len = max(dataframe[col].astype(str).map(len).max(), len(col)) + 2
+                    worksheet.set_column(i, i, max_len)
 
-        # Rewind the buffer
         buffer.seek(0)
 
-        # Streamlit Download Button
         st.download_button(
-            label="📥 Download Plan as Excel",
+            label="📥 Download Full Report (Excel)",
             data=buffer,
-            file_name="staggered_buying_plan.xlsx",
+            file_name="staggered_buying_full_report.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
         # =========================================================
-
 
         st.divider()
 
