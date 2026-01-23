@@ -206,77 +206,58 @@ if st.button("🚀 Calculate"):
         st.dataframe(styled_df, use_container_width=True)
 
         # =========================================================
-        # 🟢 EXPORT TO EXCEL (SINGLE SHEET - STOCK NAME)
+        # 🟢 EXPORT TO EXCEL (SINGLE ROW - FLAT DATA)
         # =========================================================
         
-        # 1. Create Summary DataFrame (Inputs + High-Level Results)
-        summary_data = {
-            "Parameter": [
-                "Stock Name", "Spot Price", "Lot Size", "Option Lots",
-                "Call SELL Strike", "Call SELL Price",
-                "Call BUY Strike", "Call BUY Price",
-                "Max Buy Steps", "Initial Leg %", "Coverage Ratio Required",
-                "-----------------", "-----------------", # Separator
-                "Calculated Breakeven", "Max Option Loss", "Total Shares Required",
-                "Total Capital (Staggered)", "Average Buy Price", "Equity Profit @ BE"
-            ],
-            "Value": [
-                stock_name, spot_price, lot_size, option_lots,
-                call_sell_strike, call_sell_price,
-                call_buy_strike, call_buy_price,
-                steps, f"{initial_leg_percent}%", f"{coverage_ratio*100}%",
-                "", "", # Separator
-                round(breakeven, 2), option_loss, required_shares,
-                staggered_capital, round(avg_price, 2), int(profit_at_be)
-            ]
+        # Construct a dictionary for horizontal data export
+        # First Key is Stock Name, followed by inputs and then results
+        flat_data = {
+            "Stock Name": stock_name,
+            "Spot Price": spot_price,
+            "Lot Size": lot_size,
+            "Option Lots": option_lots,
+            "Call SELL Strike": call_sell_strike,
+            "Call SELL Price": call_sell_price,
+            "Call BUY Strike": call_buy_strike,
+            "Call BUY Price": call_buy_price,
+            "Steps": steps,
+            "Initial Leg %": initial_leg_percent,
+            "Coverage %": coverage_ratio * 100,
+            "Breakeven": round(breakeven, 2),
+            "Max Option Loss": option_loss,
+            "Total Shares": required_shares,
+            "Total Capital": staggered_capital,
+            "Avg Buy Price": round(avg_price, 2),
+            "Equity Profit @ BE": int(profit_at_be),
+            "Status": "Covered Early" if covered_early else "Full Steps"
         }
-        df_summary = pd.DataFrame(summary_data)
 
-        # 2. Create Excel File with Single Sheet
+        # Create a single-row DataFrame
+        df_export = pd.DataFrame([flat_data])
+
         buffer = io.BytesIO()
         
-        # Clean stock name for sheet usage (remove invalid chars just in case, or use as is)
-        safe_sheet_name = "".join([c for c in stock_name if c.isalnum() or c in (' ','-','_')])[:30]
-        if not safe_sheet_name: safe_sheet_name = "Plan"
+        # Clean stock name for filename
+        safe_filename_prefix = "".join([c for c in stock_name if c.isalnum() or c in (' ','-','_')])[:30]
+        if not safe_filename_prefix: safe_filename_prefix = "TradePlan"
 
         with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
-            
-            # Write Summary at the top
-            df_summary.to_excel(writer, index=False, sheet_name=safe_sheet_name, startrow=0)
-            
-            # Get the workbook and sheet objects to write a header for the next section
-            workbook = writer.book
-            worksheet = writer.sheets[safe_sheet_name]
-            
-            # Define start row for the second table (Summary Rows + Header + Gap)
-            start_row_plan = len(df_summary) + 4
-            
-            # Add a bold header for the Detailed Plan
-            bold_fmt = workbook.add_format({'bold': True, 'font_size': 12})
-            worksheet.write(start_row_plan - 1, 0, "Detailed Buying Plan", bold_fmt)
-            
-            # Write Detailed Plan below the summary
-            df.to_excel(writer, index=False, sheet_name=safe_sheet_name, startrow=start_row_plan)
+            # Write the single row dataframe (Header + 1 Data Row)
+            df_export.to_excel(writer, index=False, sheet_name='Trade Log')
             
             # Auto-adjust column widths
-            for i, col in enumerate(df_summary.columns):
-                # Check width of both summary and detailed plan to set column width
-                max_len_summary = max(df_summary[col].astype(str).map(len).max(), len(col))
-                
-                # Check corresponding column in detailed plan (if it exists)
-                if i < len(df.columns):
-                    max_len_plan = max(df.iloc[:, i].astype(str).map(len).max(), len(df.columns[i]))
-                else:
-                    max_len_plan = 0
-
-                worksheet.set_column(i, i, max(max_len_summary, max_len_plan) + 2)
+            worksheet = writer.sheets['Trade Log']
+            for i, col in enumerate(df_export.columns):
+                # Find max length of data or header to set width
+                max_len = max(df_export[col].astype(str).map(len).max(), len(col)) + 2
+                worksheet.set_column(i, i, max_len)
 
         buffer.seek(0)
 
         st.download_button(
-            label=f"📥 Download {stock_name} Report (Excel)",
+            label=f"📥 Download {stock_name} Log (Row Format)",
             data=buffer,
-            file_name=f"{safe_sheet_name}_Staggered_Plan.xlsx",
+            file_name=f"{safe_filename_prefix}_Log.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
         # =========================================================
