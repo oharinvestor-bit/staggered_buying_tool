@@ -105,10 +105,11 @@ st.markdown("""
     </a>
 </div>
 """, unsafe_allow_html=True)
-# 🔽 ADD VIDEO HERE
-st.video("https://youtu.be/l4KEN81CBvw")
 
 st.divider()
+
+# NEW INPUT: Stock Name (Used for Sheet Name)
+stock_name = st.text_input("Stock Name / Symbol", value="STOCK")
 
 spot_price = st.number_input("Current Spot Price", value=1500.0)
 lot_size = st.number_input("Lot Size (per option)", value=500)
@@ -205,13 +206,13 @@ if st.button("🚀 Calculate"):
         st.dataframe(styled_df, use_container_width=True)
 
         # =========================================================
-        # 🟢 EXPORT TO EXCEL (WITH INPUTS & OUTPUTS)
+        # 🟢 EXPORT TO EXCEL (SINGLE SHEET - STOCK NAME)
         # =========================================================
         
         # 1. Create Summary DataFrame (Inputs + High-Level Results)
         summary_data = {
             "Parameter": [
-                "Spot Price", "Lot Size", "Option Lots",
+                "Stock Name", "Spot Price", "Lot Size", "Option Lots",
                 "Call SELL Strike", "Call SELL Price",
                 "Call BUY Strike", "Call BUY Price",
                 "Max Buy Steps", "Initial Leg %", "Coverage Ratio Required",
@@ -220,7 +221,7 @@ if st.button("🚀 Calculate"):
                 "Total Capital (Staggered)", "Average Buy Price", "Equity Profit @ BE"
             ],
             "Value": [
-                spot_price, lot_size, option_lots,
+                stock_name, spot_price, lot_size, option_lots,
                 call_sell_strike, call_sell_price,
                 call_buy_strike, call_buy_price,
                 steps, f"{initial_leg_percent}%", f"{coverage_ratio*100}%",
@@ -231,29 +232,51 @@ if st.button("🚀 Calculate"):
         }
         df_summary = pd.DataFrame(summary_data)
 
-        # 2. Create Excel File with Two Sheets
+        # 2. Create Excel File with Single Sheet
         buffer = io.BytesIO()
+        
+        # Clean stock name for sheet usage (remove invalid chars just in case, or use as is)
+        safe_sheet_name = "".join([c for c in stock_name if c.isalnum() or c in (' ','-','_')])[:30]
+        if not safe_sheet_name: safe_sheet_name = "Plan"
+
         with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
-            # Sheet 1: Summary
-            df_summary.to_excel(writer, index=False, sheet_name='Summary')
             
-            # Sheet 2: Detailed Plan
-            df.to_excel(writer, index=False, sheet_name='Buying Plan')
+            # Write Summary at the top
+            df_summary.to_excel(writer, index=False, sheet_name=safe_sheet_name, startrow=0)
             
-            # Auto-adjust column widths for readability
-            for sheet_name in ['Summary', 'Buying Plan']:
-                worksheet = writer.sheets[sheet_name]
-                dataframe = df_summary if sheet_name == 'Summary' else df
-                for i, col in enumerate(dataframe.columns):
-                    max_len = max(dataframe[col].astype(str).map(len).max(), len(col)) + 2
-                    worksheet.set_column(i, i, max_len)
+            # Get the workbook and sheet objects to write a header for the next section
+            workbook = writer.book
+            worksheet = writer.sheets[safe_sheet_name]
+            
+            # Define start row for the second table (Summary Rows + Header + Gap)
+            start_row_plan = len(df_summary) + 4
+            
+            # Add a bold header for the Detailed Plan
+            bold_fmt = workbook.add_format({'bold': True, 'font_size': 12})
+            worksheet.write(start_row_plan - 1, 0, "Detailed Buying Plan", bold_fmt)
+            
+            # Write Detailed Plan below the summary
+            df.to_excel(writer, index=False, sheet_name=safe_sheet_name, startrow=start_row_plan)
+            
+            # Auto-adjust column widths
+            for i, col in enumerate(df_summary.columns):
+                # Check width of both summary and detailed plan to set column width
+                max_len_summary = max(df_summary[col].astype(str).map(len).max(), len(col))
+                
+                # Check corresponding column in detailed plan (if it exists)
+                if i < len(df.columns):
+                    max_len_plan = max(df.iloc[:, i].astype(str).map(len).max(), len(df.columns[i]))
+                else:
+                    max_len_plan = 0
+
+                worksheet.set_column(i, i, max(max_len_summary, max_len_plan) + 2)
 
         buffer.seek(0)
 
         st.download_button(
-            label="📥 Download Full Report (Excel)",
+            label=f"📥 Download {stock_name} Report (Excel)",
             data=buffer,
-            file_name="staggered_buying_full_report.xlsx",
+            file_name=f"{safe_sheet_name}_Staggered_Plan.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
         # =========================================================
