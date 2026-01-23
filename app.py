@@ -206,11 +206,10 @@ if st.button("🚀 Calculate"):
         st.dataframe(styled_df, use_container_width=True)
 
         # =========================================================
-        # 🟢 EXPORT TO EXCEL (SINGLE ROW - FLAT DATA)
+        # 🟢 EXPORT TO EXCEL (SINGLE ROW - WITH FLATTENED STEPS)
         # =========================================================
         
-        # Construct a dictionary for horizontal data export
-        # First Key is Stock Name, followed by inputs and then results
+        # 1. Start with Summary Data
         flat_data = {
             "Stock Name": stock_name,
             "Spot Price": spot_price,
@@ -232,32 +231,39 @@ if st.button("🚀 Calculate"):
             "Status": "Covered Early" if covered_early else "Full Steps"
         }
 
-        # Create a single-row DataFrame
+        # 2. Append Detailed Buying Steps Horizontally
+        # Loop through the calculation 'rows' and add them as columns
+        for idx, row_data in enumerate(rows):
+            step_num = idx + 1
+            flat_data[f"STEP-{step_num}"] = row_data["Step"]
+            flat_data[f"BUY PRICE-{step_num}"] = row_data["Buy Price"]
+            flat_data[f"QUANTITY-{step_num}"] = row_data["Quantity"]
+            flat_data[f"CAPITAL USED-{step_num}"] = row_data["Capital Used (₹)"]
+
+        # 3. Create DataFrame
         df_export = pd.DataFrame([flat_data])
 
         buffer = io.BytesIO()
         
-        # Clean stock name for filename
         safe_filename_prefix = "".join([c for c in stock_name if c.isalnum() or c in (' ','-','_')])[:30]
         if not safe_filename_prefix: safe_filename_prefix = "TradePlan"
 
         with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
-            # Write the single row dataframe (Header + 1 Data Row)
             df_export.to_excel(writer, index=False, sheet_name='Trade Log')
             
             # Auto-adjust column widths
             worksheet = writer.sheets['Trade Log']
             for i, col in enumerate(df_export.columns):
-                # Find max length of data or header to set width
+                # Check length of data and header
                 max_len = max(df_export[col].astype(str).map(len).max(), len(col)) + 2
                 worksheet.set_column(i, i, max_len)
 
         buffer.seek(0)
 
         st.download_button(
-            label=f"📥 Download {stock_name} Log (Row Format)",
+            label=f"📥 Download {stock_name} Full Log (Row Format)",
             data=buffer,
-            file_name=f"{safe_filename_prefix}_Log.xlsx",
+            file_name=f"{safe_filename_prefix}_Full_Log.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
         # =========================================================
