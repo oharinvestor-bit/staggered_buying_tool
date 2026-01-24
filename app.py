@@ -124,7 +124,7 @@ if st.button("🚀 Calculate"):
 
         staggered_capital, profit_at_be, avg_price, total_qty, rows, covered_early = result
 
-        # Display Metrics
+        # Display Metrics in UI
         st.subheader("📈 Option & Capital Metrics")
         c1, c2, c3 = st.columns(3)
         c1.metric("Required Shares", required_shares)
@@ -133,7 +133,7 @@ if st.button("🚀 Calculate"):
 
         st.divider()
 
-        # 🟢 UPDATED VERTICAL EXPORT LOGIC (Matching Image Headers)
+        # 🟢 FINAL UPDATED EXPORT LOGIC (Headers + Max Option Loss)
         export_dict = {
             "Stock Name": stock_name,
             "Spot Price": spot_price,
@@ -147,7 +147,8 @@ if st.button("🚀 Calculate"):
             "Initial Leg %": initial_leg_percent,
             "Coverage %": f"{coverage_ratio * 100}%",
             "Breakeven": round(breakeven, 2),
-            "--- RESULTS ---": "---",
+            "Max Option Loss": f"₹{option_loss}",  # Added as requested
+            "--- CALCULATION RESULTS ---": "---",
             "Total Shares Required": required_shares,
             "Total Capital Needed": staggered_capital,
             "Avg Buy Price": round(avg_price, 2),
@@ -155,38 +156,38 @@ if st.button("🚀 Calculate"):
             "Status": "Covered Early" if covered_early else "Full Steps Completed"
         }
 
-        # Add Steps vertically
+        # Add Buying Steps vertically
         for idx, r in enumerate(rows):
             s = idx + 1
             export_dict[f"Step {s} Price"] = r["Buy Price"]
             export_dict[f"Step {s} Qty"] = r["Quantity"]
             export_dict[f"Step {s} Capital"] = r["Capital Used (₹)"]
 
-        # Transpose into two columns
+        # Transpose into two-column DataFrame
         df_export = pd.Series(export_dict).reset_index()
         df_export.columns = ["Header", "Data"]
 
-        # Excel File Generation
+        # Generate Excel Buffer
         buffer = io.BytesIO()
         with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
             df_export.to_excel(writer, index=False, sheet_name='TradePlan')
             workbook  = writer.book
             worksheet = writer.sheets['TradePlan']
             
-            # Formats
-            bold_fmt = workbook.add_format({'bold': True, 'bg_color': '#EFEFEF', 'border': 1})
-            val_fmt = workbook.add_format({'border': 1})
+            # Formatting for professional look
+            header_fmt = workbook.add_format({'bold': True, 'bg_color': '#EFEFEF', 'border': 1, 'font_size': 11})
+            data_fmt = workbook.add_format({'border': 1, 'font_size': 11})
             
-            worksheet.set_column(0, 0, 30, bold_fmt)
-            worksheet.set_column(1, 1, 25, val_fmt)
+            worksheet.set_column(0, 0, 32, header_fmt)
+            worksheet.set_column(1, 1, 28, data_fmt)
 
         buffer.seek(0)
         
         st.download_button(
             label=f"📥 Download {stock_name} Export",
             data=buffer,
-            file_name=f"{stock_name}_Plan.xlsx",
+            file_name=f"{stock_name}_Trading_Plan.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
 
-        st.success("Calculation Complete! You can now download the vertical export.")
+        st.success("Analysis complete. Check the vertical export for 'Max Option Loss'.")
