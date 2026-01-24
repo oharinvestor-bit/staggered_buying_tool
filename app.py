@@ -43,7 +43,6 @@ def required_staggered_capital(
                 "Capital Used (₹)": actual_capital
             })
 
-            # 🟢 COVERED CALL EARLY STOP
             if total_qty >= required_shares:
                 avg_price = total_cost / total_qty
                 equity_profit = (breakeven - avg_price) * total_qty
@@ -94,9 +93,9 @@ option_lots = st.number_input("Number of Option Lots Executed", min_value=1, val
 
 st.subheader("📌 Call Details")
 call_sell_strike = st.number_input("Call SELL Strike", value=1530.0)
-call_sell_price = st.number_input("Call SELL Premium", value=15.0)
+call_sell_price = st.number_input("Call SELL Price", value=15.0)
 call_buy_strike = st.number_input("Call BUY Strike", value=1540.0)
-call_buy_price = st.number_input("Call BUY Premium", value=10.0)
+call_buy_price = st.number_input("Call BUY Price", value=10.0)
 
 st.subheader("📌 Execution Plan")
 steps = st.slider("Maximum Buy Steps", min_value=2, max_value=10, value=5)
@@ -132,26 +131,23 @@ if st.button("🚀 Calculate"):
         c2.metric("Breakeven Price", round(breakeven, 2))
         c3.metric("Max Option Loss", f"₹{option_loss}")
 
-        c4, c5 = st.columns(2)
-        c4.metric("Capital (Lump Sum)", f"₹{base_capital}")
-        c5.metric("Capital (Staggered)", f"₹{staggered_capital}")
-
         st.divider()
 
-        # Display Buy Plan Table
-        st.markdown("## 📋 **STAGGERED BUY PLAN**")
-        df_ui = pd.DataFrame(rows)
-        st.dataframe(df_ui.style.format({"Buy Price": "₹{:,.2f}", "Capital Used (₹)": "₹{:,.0f}"}), use_container_width=True)
-
-        # 🟢 VERTICAL EXPORT LOGIC
-        # 1. Prepare flat dictionary
+        # 🟢 UPDATED VERTICAL EXPORT LOGIC (Matching Image Headers)
         export_dict = {
             "Stock Name": stock_name,
             "Spot Price": spot_price,
             "Lot Size": lot_size,
             "Option Lots": option_lots,
+            "Call SELL Strike": call_sell_strike,
+            "Call SELL Price": call_sell_price,
+            "Call BUY Strike": call_buy_strike,
+            "Call BUY Price": call_buy_price,
+            "Steps": steps,
+            "Initial Leg %": initial_leg_percent,
+            "Coverage %": f"{coverage_ratio * 100}%",
             "Breakeven": round(breakeven, 2),
-            "Max Option Loss": option_loss,
+            "--- RESULTS ---": "---",
             "Total Shares Required": required_shares,
             "Total Capital Needed": staggered_capital,
             "Avg Buy Price": round(avg_price, 2),
@@ -159,53 +155,38 @@ if st.button("🚀 Calculate"):
             "Status": "Covered Early" if covered_early else "Full Steps Completed"
         }
 
-        # 2. Add Steps vertically
+        # Add Steps vertically
         for idx, r in enumerate(rows):
             s = idx + 1
-            export_dict[f"--- STEP {s} ---"] = "---"
-            export_dict[f"Step {s} Buy Price"] = r["Buy Price"]
-            export_dict[f"Step {s} Quantity"] = r["Quantity"]
-            export_dict[f"Step {s} Capital Used"] = r["Capital Used (₹)"]
+            export_dict[f"Step {s} Price"] = r["Buy Price"]
+            export_dict[f"Step {s} Qty"] = r["Quantity"]
+            export_dict[f"Step {s} Capital"] = r["Capital Used (₹)"]
 
-        # 3. Transpose into two columns
+        # Transpose into two columns
         df_export = pd.Series(export_dict).reset_index()
-        df_export.columns = ["Metric/Header", "Value"]
+        df_export.columns = ["Header", "Data"]
 
-        # 4. Excel File Generation
+        # Excel File Generation
         buffer = io.BytesIO()
         with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
             df_export.to_excel(writer, index=False, sheet_name='TradePlan')
-            
             workbook  = writer.book
             worksheet = writer.sheets['TradePlan']
             
             # Formats
-            bold_fmt = workbook.add_format({'bold': True, 'bg_color': '#D7E4BD', 'border': 1})
+            bold_fmt = workbook.add_format({'bold': True, 'bg_color': '#EFEFEF', 'border': 1})
             val_fmt = workbook.add_format({'border': 1})
             
-            # Formatting Columns
-            worksheet.set_column(0, 0, 30, bold_fmt) # Column A
-            worksheet.set_column(1, 1, 20, val_fmt)  # Column B
+            worksheet.set_column(0, 0, 30, bold_fmt)
+            worksheet.set_column(1, 1, 25, val_fmt)
 
         buffer.seek(0)
         
         st.download_button(
-            label=f"📥 Download {stock_name} Vertical Export",
+            label=f"📥 Download {stock_name} Export",
             data=buffer,
-            file_name=f"{stock_name}_Trade_Plan.xlsx",
+            file_name=f"{stock_name}_Plan.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
 
-        st.divider()
-        st.subheader("✅ Final Validation")
-        f1, f2, f3 = st.columns(3)
-        f1.metric("Final Avg Price", f"₹{round(avg_price,2)}")
-        f2.metric("Total Qty", total_qty)
-        f3.metric("Profit @ BE", f"₹{int(profit_at_be)}")
-
-        if covered_early:
-            st.success("Strategy: COVERED CALL attained early.")
-        elif profit_at_be >= coverage_ratio * option_loss:
-            st.success("Strategy: Sufficient MTM coverage achieved.")
-        else:
-            st.warning("Strategy: Hedge coverage below target ratio.")
+        st.success("Calculation Complete! You can now download the vertical export.")
